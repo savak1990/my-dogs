@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  dogs-service
+
+  Sample SAM Template for dogs-service
+
+Globals:
+  Function:
+    Handler: app.lambda_handler
+    Runtime: python3.13
+    Timeout: 5
+    Tracing: Active
+    Architectures:
+      - x86_64
+    LoggingConfig:
+      LogFormat: JSON
+    Environment:
+      Variables:
+        LOG_LEVEL: INFO
+  Api:
+    TracingEnabled: true
+
+Resources:
+  DogsServiceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dogs_service_lambda/
+      Events:
+        GetDogsApi:
+          Type: Api
+          Properties:
+            Path: /users/{user_id}/dogs
+            Method: get
+        PostDogsApi:
+          Type: Api
+          Properties:
+            Path: /users/{user_id}/dogs
+            Method: post
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: "true"
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  DogsServiceApi:
+    Description: API Gateway endpoint URL for Prod stage for Dogs Service
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  DogsServiceFunction:
+    Description: Dogs Service Lambda Function ARN
+    Value: !GetAtt DogsServiceFunction.Arn
+  DogsServiceFunctionIamRole:
+    Description: Implicit IAM Role created for Dogs Service function
+    Value: !GetAtt DogsServiceFunctionRole.Arn
