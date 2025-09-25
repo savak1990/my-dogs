@@ -1,69 +1,42 @@
 import os
 import handlers
-import utils
 
-from aws_lambda_powertools import Logger
-from aws_lambda_powertools.event_handler.api_gateway import APIGatewayHttpResolver
-from aws_lambda_powertools.utilities.parser import event_parser, parse
+from aws_lambda_powertools import Logger, Tracer
+from aws_lambda_powertools.event_handler import APIGatewayRestResolver
+from aws_lambda_powertools.event_handler.openapi.params import Path
+from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
-from aws_lambda_powertools.utilities.parser.models import APIGatewayProxyEventModel
-from pydantic import ValidationError
 
-from dataclasses import dataclass
-from models import Context
-from typing import Callable
+from datetime import datetime, timezone
+from models import DogIn, DogOut
+from typing import List
+from typing_extensions import Annotated
+from uuid import UUID
 
+DATETIME_NOW_UTC_FN = lambda: datetime.now(timezone.utc)
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+
+tracer = Tracer(service="dogs-service")
 logger = Logger(service="dogs-service", level=LOG_LEVEL)
+app = APIGatewayRestResolver(enable_validation=True, debug=True)
 
-@dataclass
-class Operation:
-    id: str
-    handler: Callable
+@app.get("/users/<user_id>/dogs")
+@tracer.capture_method
+def get_user_dogs(user_id: Annotated[UUID, Path(description="user id as UUID")]) -> List[DogOut]:
+    return handlers.handle_user_dogs_get(user_id)
 
-OPERATION_MAP = {
-    "GET /users/{user_id}/dogs": Operation("userDogsGet", handlers.handle_user_dogs_get),
-    "POST /users/{user_id}/dogs": Operation("userDogsPost", handlers.handle_user_dogs_post),
-}
+@app.post("/users/<user_id>/dogs")
+@tracer.capture_method
+def create_user_dog(user_id: Annotated[UUID, Path(description="user id as UUID")], body: DogIn) -> DogOut:
+    return handlers.handle_user_dogs_post(user_id, body)
 
-def handle_event(event, context: LambdaContext):
-    operation_id = "unknown"
-    response_holder: any
-    try:
-        request = parse(event, model=APIGatewayProxyEventModel)
-        request_sig = f"{request.http_method} {request.resource}"
-        operation = OPERATION_MAP.get(request_sig)
-        if operation is None:
-            response_holder = utils.build_bad_request_error(
-                context, f"Unknown operation: {request_sig}")
-        else:
-            operation_id = operation.id
-            response_holder = operation.handler(context, request)
-    except ValidationError as ve:
-        logger.warning(
-            "Validation error", 
-            extra={"event": request, "operation_id": operation_id},
-            exc_info=ve, 
-            stack_info=True)
-        response_holder = utils.build_bad_request_error(context, "Invalid request format")
-    except Exception as e:
-        logger.exception("Error handling event", extra={"event": request, "operation_id": operation_id}, stack_info=True)
-        response_holder = utils.build_unexpected_error(
-            context, 
-            "An unexpected error occurred",
-            exc_info=ve,
-            stack_info=True)
-    return operation_id, response_holder
+@app.get("/health")
+@tracer.capture_method
+def health_check():
+    return {"status": "healthy"}
 
-def lambda_handler(event, context):
-    logger.debug("handler invoked", extra={"event_present": bool(event)})
-
-    start_time = utils.DATETIME_NOW_UTC_FN()
-    context = Context(context, start_time)
-    operation_id, response_holder = handle_event(event, context)
-    response = utils.build_response(response_holder)
-    dur_ms = int((utils.DATETIME_NOW_UTC_FN() - start_time).total_seconds() * 1000)
-
-    logger.debug("handler completed", extra={"event_present": bool(event)})
-
-    return response
+@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)
+@tracer.capture_lambda_handler
+def lambda_handler(event: dict, context: LambdaContext) -> dict:
+    logger.debug(f"Start Lambda Handler with event: {event}")
+    return app.resolve(event, context)

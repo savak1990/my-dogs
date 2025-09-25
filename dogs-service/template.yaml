@@ -13,7 +13,7 @@ Globals:
   Function:
     Handler: app.lambda_handler
     Runtime: python3.13
-    Timeout: 10
+    Timeout: 20
     Tracing: Active
     Architectures:
       - x86_64
@@ -32,11 +32,21 @@ Resources:
     Properties:
       CodeUri: dogs_service_lambda/
       Events:
-        AnyDogsApi:
+        GetUserDogs:
           Type: Api
           Properties:
-            Path: /users/{user_id}/{proxy+}
-            Method: any
+            Path: /users/{user_id}/dogs
+            Method: GET
+        PostUserDogs:
+          Type: Api
+          Properties:
+            Path: /users/{user_id}/dogs
+            Method: POST
+        GetHealth:
+          Type: Api
+          Properties:
+            Path: /health
+            Method: GET
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
