@@ -1,17 +1,15 @@
 {
-  "body": "{\"message\": \"hello world\"}",
-  "resource": "/hello",
-  "path": "/hello",
+  "body": null,
+  "resource": "/users/{user_id}/dogs",
+  "path": "/users/53bea77a-f2bd-42a0-a445-6c7477fce1c9/dogs",
   "httpMethod": "GET",
   "isBase64Encoded": false,
-  "queryStringParameters": {
-    "foo": "bar"
-  },
+  "queryStringParameters": {},
   "pathParameters": {
-    "proxy": "/path/to/resource"
+    "user_id": "53bea77a-f2bd-42a0-a445-6c7477fce1c9"
   },
   "stageVariables": {
-    "baz": "qux"
+    "stage": "dev"
   },
   "headers": {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -53,9 +51,9 @@
       "userAgent": "Custom User Agent String",
       "user": null
     },
-    "path": "/prod/hello",
-    "resourcePath": "/hello",
-    "httpMethod": "POST",
+    "path": "/prod/users/53bea77a-f2bd-42a0-a445-6c7477fce1c9/dogs",
+    "resourcePath": "/users/{user_id}/dogs",
+    "httpMethod": "GET",
     "apiId": "1234567890",
     "protocol": "HTTP/1.1"
   }

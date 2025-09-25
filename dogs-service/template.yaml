@@ -1,15 +1,19 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: >
-  dogs-service
-
-  Sample SAM Template for dogs-service
+Description: Dogs Service - Manages adding and retrieving dogs for users.
 
 Globals:
+  Api:
+    TracingEnabled: true
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
+
   Function:
     Handler: app.lambda_handler
     Runtime: python3.13
-    Timeout: 5
+    Timeout: 10
     Tracing: Active
     Architectures:
       - x86_64
@@ -18,8 +22,9 @@ Globals:
     Environment:
       Variables:
         LOG_LEVEL: INFO
-  Api:
-    TracingEnabled: true
+        POWERTOOLS_SERVICE_NAME: dogs-service
+        POWERTOOLS_LOGGER_SAMPLE_RATE: "0.1"
+        POWERTOOLS_LOGGER_LOG_EVENT: true
 
 Resources:
   DogsServiceFunction:
@@ -27,16 +32,11 @@ Resources:
     Properties:
       CodeUri: dogs_service_lambda/
       Events:
-        GetDogsApi:
+        AnyDogsApi:
           Type: Api
           Properties:
-            Path: /users/{user_id}/dogs
-            Method: get
-        PostDogsApi:
-          Type: Api
-          Properties:
-            Path: /users/{user_id}/dogs
-            Method: post
+            Path: /users/{user_id}/{proxy+}
+            Method: any
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
