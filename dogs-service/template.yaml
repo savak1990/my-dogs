@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: Dogs Service - Manages adding and retrieving dogs for users.
 
+Parameters:
+  Stage:
+    Type: String
+    Default: "prod"
+
 Globals:
   Api:
     TracingEnabled: true
@@ -13,7 +18,7 @@ Globals:
   Function:
     Handler: app.lambda_handler
     Runtime: python3.13
-    Timeout: 20
+    Timeout: 30
     Tracing: Active
     Architectures:
       - x86_64
@@ -22,7 +27,6 @@ Globals:
     Environment:
       Variables:
         LOG_LEVEL: INFO
-        POWERTOOLS_SERVICE_NAME: dogs-service
         POWERTOOLS_LOGGER_SAMPLE_RATE: "0.1"
         POWERTOOLS_LOGGER_LOG_EVENT: true
 
@@ -30,7 +34,18 @@ Resources:
   DogsServiceFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: !Join ["-", [!Ref "AWS::StackName", !Ref Stage]]
       CodeUri: dogs_service_lambda/
+      Description: Lambda function for Dogs Service
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DogsTable
+        - AWSXRayDaemonWriteAccess
+      Environment:
+        Variables:
+          DYNAMODB_ENDPOINT: ""
+          DOGS_TABLE_NAME: !Ref DogsTable
+          POWERTOOLS_SERVICE_NAME: dogs-service
       Events:
         GetUserDogs:
           Type: Api
@@ -47,6 +62,22 @@ Resources:
           Properties:
             Path: /health
             Method: GET
+  
+  DogsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-${Stage}-db"
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
@@ -61,10 +92,8 @@ Resources:
       ResourceGroupName:
         Ref: ApplicationResourceGroup
       AutoConfigurationEnabled: "true"
+  
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   DogsServiceApi:
     Description: API Gateway endpoint URL for Prod stage for Dogs Service
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"

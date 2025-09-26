@@ -1,16 +1,62 @@
 
-from models import DogIn, DogOut
-from typing import List
+from db import DynamoDBClient
+from models import DogDb, DogIn, DogOut
+from typing import List, Dict, Any
+from datetime import datetime, timezone
+from aws_lambda_powertools.event_handler.exceptions import ServiceError
+from aws_lambda_powertools import Logger
 
-def handle_user_dogs_get(user_id: str) -> List[DogOut]:
+class DogsService:
+
+    def __init__(self, db: DynamoDBClient):
+        self.db = db
+
+    def handle_user_dogs_get(self, user_id: str) -> List[DogOut]:
+        dogs_db: List[DogDb] = self.db.query_dogs_by_user_id(user_id)
+        return [dog_db.to_dog_out() for dog_db in dogs_db]
+
+    def handle_user_dogs_post(self, user_id: str, dog: DogIn) -> DogOut:
+        dog_db: DogDb = self.db.create_dog(user_id, dog)
+        return dog_db.to_dog_out()
+
+
+class HealthService:
+    def __init__(self, dogs_service: DogsService, service_name: str = "dogs-service"):
+        self.dogs_service = dogs_service
+        self.service_name = service_name
+        self.logger = Logger()
     
-    dogs = [
-        DogOut(user_id=user_id, name="Buddy", age=5),
-        DogOut(user_id=user_id, name="Max", age=3),
-    ]
-
-    return [d.model_dump() for d in dogs]
-
-def handle_user_dogs_post(user_id: str, dog: DogIn) -> DogOut:
-    dog_out = DogOut(user_id=user_id, name=dog.name, age=dog.age)
-    return dog_out
+    def get_health_status(self) -> Dict[str, Any]:
+        health_status = {
+            "status": "healthy",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "service": self.service_name,
+            "checks": {}
+        }
+        
+        overall_healthy = True
+        
+        health_status["checks"]["service"] = {"status": "healthy"}
+        
+        try:
+            self.dogs_service.db.health_check()
+            health_status["checks"]["database"] = {"status": "healthy"}
+        except ServiceError as e:
+            overall_healthy = False
+            health_status["checks"]["database"] = {
+                "status": "unhealthy", 
+                "error": str(e)
+            }
+            self.logger.exception(f"Database health check failed: {e}")
+        except Exception as e:
+            overall_healthy = False
+            health_status["checks"]["database"] = {
+                "status": "unhealthy", 
+                "error": "Database connection test failed"
+            }
+            self.logger.exception(f"Unexpected error in database health check: {e}")
+        
+        if not overall_healthy:
+            health_status["status"] = "unhealthy"
+        
+        return health_status
