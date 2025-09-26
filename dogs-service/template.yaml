@@ -31,10 +31,26 @@ Globals:
         POWERTOOLS_LOGGER_LOG_EVENT: true
 
 Resources:
+  DogsImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-${Stage}-images"
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - PUT
+              - POST
+              - HEAD
+            AllowedOrigins:
+              - "*"
+            MaxAge: 3000
+
   DogsServiceFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Join ["-", [!Ref "AWS::StackName", !Ref Stage]]
+      FunctionName: !Sub "${AWS::StackName}-${Stage}-lambda"
       CodeUri: dogs_service_lambda/
       Description: Lambda function for Dogs Service
       Policies:
@@ -94,6 +110,9 @@ Resources:
       AutoConfigurationEnabled: "true"
   
 Outputs:
+  DogsImageBucket:
+    Description: S3 Bucket for storing dog images
+    Value: !Ref DogsImageBucket
   DogsServiceApi:
     Description: API Gateway endpoint URL for Prod stage for Dogs Service
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"

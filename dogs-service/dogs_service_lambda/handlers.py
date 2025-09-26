@@ -1,6 +1,6 @@
 
 from db import DynamoDBClient
-from models import DogDb, DogIn, DogOut
+from models import DogDb, CreateDogRequestPayload, CreateDogResponsePayload, DogInfo, UploadInfo
 from typing import List, Dict, Any
 from datetime import datetime, timezone
 from aws_lambda_powertools.event_handler.exceptions import ServiceError
@@ -11,13 +11,24 @@ class DogsService:
     def __init__(self, db: DynamoDBClient):
         self.db = db
 
-    def handle_user_dogs_get(self, user_id: str) -> List[DogOut]:
+    def handle_user_dogs_get(self, user_id: str) -> List[DogInfo]:
         dogs_db: List[DogDb] = self.db.query_dogs_by_user_id(user_id)
-        return [dog_db.to_dog_out() for dog_db in dogs_db]
+        return [dog_db.to_dog_info() for dog_db in dogs_db]
 
-    def handle_user_dogs_post(self, user_id: str, dog: DogIn) -> DogOut:
+    def handle_user_dogs_post(self, user_id: str, dog: CreateDogRequestPayload) -> CreateDogResponsePayload:
         dog_db: DogDb = self.db.create_dog(user_id, dog)
-        return dog_db.to_dog_out()
+        
+        # Generate upload info (placeholder for now - you'll implement S3 presigned URL generation here)
+        upload_id = self.db._next_sequence_upload_id()
+        upload_info = UploadInfo(
+            upload_id=upload_id,
+            method="PUT",
+            presigned_url=f"https://placeholder-bucket.s3.amazonaws.com/uploads/user-{user_id}/dog-{dog_db.SK.split('#')[1]}.jpg?signature=placeholder",
+            expires_in=300,
+            max_size=5242880
+        )
+        
+        return dog_db.to_dog_create_response_payload(upload_info)
 
 
 class HealthService:

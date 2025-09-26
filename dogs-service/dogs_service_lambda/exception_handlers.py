@@ -1,4 +1,5 @@
 import logging
+
 from aws_lambda_powertools.event_handler import Response
 from aws_lambda_powertools.event_handler.openapi.exceptions import RequestValidationError
 from botocore.exceptions import ClientError, BotoCoreError

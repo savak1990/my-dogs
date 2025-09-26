@@ -1,4 +1,4 @@
 aws-lambda-powertools>=2.28.0
 aws-xray-sdk
-pydantic>=2.5
+pydantic>=2.5,<3.0
 requests

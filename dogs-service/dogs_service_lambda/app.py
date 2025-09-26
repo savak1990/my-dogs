@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from botocore.exceptions import ClientError, BotoCoreError
 from db import DynamoDBClient
 from handlers import DogsService, HealthService
-from models import DogIn, DogOut
+from models import CreateDogResponsePayload, CreateDogRequestPayload, DogInfo
 from typing import List
 from typing_extensions import Annotated
 from uuid import UUID
@@ -57,18 +57,20 @@ def get_health_service() -> HealthService:
     return health_service
 
 @app.get("/users/<user_id>/dogs")
-def get_user_dogs(user_id: Annotated[UUID, Path(description="user id as UUID")]) -> List[DogOut]:
+@tracer.capture_method
+def get_user_dogs(user_id: Annotated[UUID, Path(description="user id as UUID")]) -> List[DogInfo]:
     serv = get_dogs_service()
-    return serv.handle_user_dogs_get(user_id)
+    return serv.handle_user_dogs_get(str(user_id))
 
-@app.post("/users/<user_id>/dogs", responses={201: {"model": DogOut}})
-def create_user_dog(user_id: Annotated[UUID, Path(description="user id as UUID")], body: DogIn) -> DogOut:
+@app.post("/users/<user_id>/dogs", responses={201: {"model": CreateDogResponsePayload}})
+@tracer.capture_method
+def create_user_dog(user_id: Annotated[UUID, Path(description="user id as UUID")], body: CreateDogRequestPayload) -> CreateDogResponsePayload:
     serv = get_dogs_service()
-    created_dog = serv.handle_user_dogs_post(user_id, body)
+    created_dog = serv.handle_user_dogs_post(str(user_id), body)
     return created_dog
 
-
 @app.get("/health")
+@tracer.capture_method
 def health_check():
     health_service = get_health_service()
     health_status = health_service.get_health_status()

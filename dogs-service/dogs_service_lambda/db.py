@@ -6,7 +6,7 @@ from boto3.dynamodb.conditions import Key
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from models import DogDb, DogIn
+from models import DogDb, CreateDogRequestPayload
 from typing import List
 
 class DynamoDBClient:
@@ -27,8 +27,8 @@ class DynamoDBClient:
         normalized_items = [self._normalize_item(item) for item in items]
         return [DogDb.model_validate(item) for item in normalized_items]
     
-    def create_dog(self, user_id: str, item: DogIn) -> DogDb:
-        seq = self._next_sequence_id(user_id)
+    def create_dog(self, user_id: str, item: CreateDogRequestPayload) -> DogDb:
+        seq = self._next_sequence_dog_id(user_id)
         now = datetime.now(timezone.utc).isoformat()
         pk = f"USER#{user_id}"
         sk = f"DOG#{seq}"
@@ -48,7 +48,7 @@ class DynamoDBClient:
     def health_check(self):
         self._table.meta.client.describe_table(TableName=self.table_name)
 
-    def _next_sequence_id(self, user_id: str) -> int:
+    def _next_sequence_dog_id(self, user_id: str) -> int:
         pk = f"USER#{user_id}"
         
         resp = self._table.update_item(
@@ -61,10 +61,19 @@ class DynamoDBClient:
         new_val = resp.get("Attributes", {}).get("dog_counter", 0)
         return int(new_val)
     
+    def _next_sequence_upload_id(self) -> int:
+        resp = self._table.update_item(
+            Key={"PK": "GLOBAL#META", "SK": "META#SEQUENCE"},
+            UpdateExpression="ADD #c :inc",
+            ExpressionAttributeNames={"#c": "upload_counter"},
+            ExpressionAttributeValues={":inc": Decimal(1)},
+            ReturnValues="UPDATED_NEW")
+
+        new_val = resp.get("Attributes", {}).get("upload_counter", 0)
+        return int(new_val)
     
     def _normalize_item(self, item: dict) -> dict:
         return json.loads(json.dumps(item, default=self._decimal_default))
-
 
     def _decimal_default(self, obj):
         if isinstance(obj, Decimal):
