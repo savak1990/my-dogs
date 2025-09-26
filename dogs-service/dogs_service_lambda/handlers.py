@@ -13,13 +13,12 @@ class DogsService:
 
     def handle_user_dogs_get(self, user_id: str) -> List[DogInfo]:
         dogs_db: List[DogDb] = self.db.query_dogs_by_user_id(user_id)
-        return [dog_db.to_dog_info() for dog_db in dogs_db]
+        return [DogInfo.create(dog_db) for dog_db in dogs_db]
 
     def handle_user_dogs_post(self, user_id: str, dog: CreateDogRequestPayload) -> CreateDogResponsePayload:
         dog_db: DogDb = self.db.create_dog(user_id, dog)
+        upload_id = self.db.create_upload_id()
         
-        # Generate upload info (placeholder for now - you'll implement S3 presigned URL generation here)
-        upload_id = self.db._next_sequence_upload_id()
         upload_info = UploadInfo(
             upload_id=upload_id,
             method="PUT",
@@ -28,7 +27,7 @@ class DogsService:
             max_size=5242880
         )
         
-        return dog_db.to_dog_create_response_payload(upload_info)
+        return CreateDogResponsePayload.create(dog_db, upload_info)
 
 
 class HealthService:

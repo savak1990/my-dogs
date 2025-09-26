@@ -1,6 +1,16 @@
+from __future__ import annotations
+
 from pydantic import BaseModel, Field
 from uuid import UUID
 from typing import Optional
+
+class DogDb(BaseModel):
+    PK: str = Field(..., description="Partition Key, format: USER#<user_id>")
+    SK: str = Field(..., description="Sort Key, format: DOG#<dog_id>")
+    name: str
+    age: int
+    created_at: str
+    updated_at: str
 
 class UploadInfo(BaseModel):
     upload_id: int
@@ -20,38 +30,32 @@ class CreateDogResponsePayload(BaseModel):
     name: str
     age: int
     upload_info: UploadInfo
+    
+    @classmethod
+    def create(dog_db: DogDb, upload_info: UploadInfo) -> CreateDogResponsePayload:
+        user_id = UUID(dog_db.PK.split("#")[1])
+        dog_id = int(dog_db.SK.split("#")[1])
+        return CreateDogResponsePayload(
+            user_id=user_id,
+            dog_id=dog_id,
+            name=dog_db.name,
+            age=dog_db.age,
+            upload_info=upload_info
+        )
 
 class DogInfo(BaseModel):
     user_id: UUID
     dog_id: int
     name: str
     age: int
-
-class DogDb(BaseModel):
-    PK: str = Field(..., description="Partition Key, format: USER#<user_id>")
-    SK: str = Field(..., description="Sort Key, format: DOG#<dog_id>")
-    name: str
-    age: int
-    created_at: str
-    updated_at: str
-
-    def to_dog_create_response_payload(self, upload_info: UploadInfo) -> CreateDogResponsePayload:
-        user_id = UUID(self.PK.split("#")[1])
-        dog_id = int(self.SK.split("#")[1])
-        return CreateDogResponsePayload(
-            user_id=user_id,
-            dog_id=dog_id,
-            name=self.name,
-            age=self.age,
-            upload_info=upload_info
-        )
     
-    def to_dog_info(self) -> DogInfo:
-        user_id = UUID(self.PK.split("#")[1])
-        dog_id = int(self.SK.split("#")[1])
+    @classmethod
+    def create(dog_db: DogDb) -> DogInfo:
+        user_id = UUID(dog_db.PK.split("#")[1])
+        dog_id = int(dog_db.SK.split("#")[1])
         return DogInfo(
             user_id=user_id,
             dog_id=dog_id,
-            name=self.name,
-            age=self.age
+            name=dog_db.name,
+            age=dog_db.age
         )

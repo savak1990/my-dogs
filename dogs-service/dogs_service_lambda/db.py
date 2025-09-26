@@ -44,10 +44,21 @@ class DynamoDBClient:
 
         self._table.put_item(Item=item.model_dump())
         return item
-    
+        
     def health_check(self):
         self._table.meta.client.describe_table(TableName=self.table_name)
+    
+    def create_upload_id(self) -> int:
+        resp = self._table.update_item(
+            Key={"PK": "GLOBAL#META", "SK": "META#SEQUENCE"},
+            UpdateExpression="ADD #c :inc",
+            ExpressionAttributeNames={"#c": "upload_counter"},
+            ExpressionAttributeValues={":inc": Decimal(1)},
+            ReturnValues="UPDATED_NEW")
 
+        new_val = resp.get("Attributes", {}).get("upload_counter", 0)
+        return int(new_val)
+    
     def _next_sequence_dog_id(self, user_id: str) -> int:
         pk = f"USER#{user_id}"
         
@@ -59,17 +70,6 @@ class DynamoDBClient:
             ReturnValues="UPDATED_NEW")
 
         new_val = resp.get("Attributes", {}).get("dog_counter", 0)
-        return int(new_val)
-    
-    def _next_sequence_upload_id(self) -> int:
-        resp = self._table.update_item(
-            Key={"PK": "GLOBAL#META", "SK": "META#SEQUENCE"},
-            UpdateExpression="ADD #c :inc",
-            ExpressionAttributeNames={"#c": "upload_counter"},
-            ExpressionAttributeValues={":inc": Decimal(1)},
-            ReturnValues="UPDATED_NEW")
-
-        new_val = resp.get("Attributes", {}).get("upload_counter", 0)
         return int(new_val)
     
     def _normalize_item(self, item: dict) -> dict:
