@@ -6,21 +6,22 @@ set -euo pipefail
 
 # Config
 TABLE_NAME=${TABLE_NAME:-local-dogs-db}
-ENDPOINT=${ENDPOINT:-http://localhost:8000}
+BUCKET_NAME=${BUCKET_NAME:-local-dogs-images}
+ENDPOINT=${ENDPOINT:-http://localhost:4566}
 
-# Ensure Docker container is running (use named container `dynamodb_local`)
-echo "Ensuring DynamoDB Local container is running..."
+# Ensure Docker container is running (use named container `localstack`)
+echo "Ensuring localstack container is running..."
 if command -v docker >/dev/null 2>&1; then
-  if docker ps --filter "name=dynamodb_local" --filter "status=running" --format '{{.Names}}' | grep -q '^dynamodb_local$'; then
-    echo "dynamodb_local is already running"
+  if docker ps --filter "name=localstack" --filter "status=running" --format '{{.Names}}' | grep -q '^localstack$'; then
+    echo "localstack is already running"
   else
     # Try to start an existing stopped container
-    if docker ps -a --filter "name=dynamodb_local" --format '{{.Names}}' | grep -q '^dynamodb_local$'; then
-      echo "Starting existing dynamodb_local container..."
-      docker start dynamodb_local
+    if docker ps -a --filter "name=localstack" --format '{{.Names}}' | grep -q '^localstack$'; then
+      echo "Starting existing localstack container..."
+      docker start localstack
     else
-      echo "Creating and starting dynamodb_local container with named volume 'dynamodb_local_data'..."
-      docker run -d --name dynamodb_local -p 8000:8000 -v dynamodb_local_data:/home/dynamodblocal/data amazon/dynamodb-local
+      echo "Creating and starting localstack container with named volume 'localstack_data'..."
+      docker run -d --name localstack -p 4566:4566 -e SERVICES="s3,dynamodb" -v localstack_data:/home/localstack/data localstack/localstack
     fi
   fi
 else
@@ -55,5 +56,25 @@ for i in {1..30}; do
   echo "  waiting... ($i)"
   sleep 1
 done
+
+# Create S3 bucket
+echo "Creating S3 bucket (if not exists)..."
+if aws s3api head-bucket --bucket "$BUCKET_NAME" --endpoint-url "$ENDPOINT" 2>/dev/null; then
+  echo "Bucket '$BUCKET_NAME' already exists - skipping create"
+else
+  echo "Bucket '$BUCKET_NAME' not found, creating..."
+  aws s3api create-bucket \
+    --bucket "$BUCKET_NAME" \
+    --endpoint-url "$ENDPOINT" \
+    --create-bucket-configuration LocationConstraint=eu-west-1
+fi
+
+# Check bucket creation
+if aws s3api head-bucket --bucket "$BUCKET_NAME" --endpoint-url "$ENDPOINT" 2>/dev/null; then
+  echo "Bucket '$BUCKET_NAME' is ready"
+else
+  echo "Failed to create or access bucket '$BUCKET_NAME'" >&2
+  exit 1
+fi
 
 echo "Done. You can verify with: aws dynamodb list-tables --endpoint-url $ENDPOINT"

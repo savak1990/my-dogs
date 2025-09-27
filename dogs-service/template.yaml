@@ -59,9 +59,11 @@ Resources:
         - AWSXRayDaemonWriteAccess
       Environment:
         Variables:
+          POWERTOOLS_SERVICE_NAME: dogs-service
           DYNAMODB_ENDPOINT: ""
           DOGS_TABLE_NAME: !Ref DogsTable
-          POWERTOOLS_SERVICE_NAME: dogs-service
+          S3_ENDPOINT: ""
+          DOGS_IMAGES_BUCKET: !Ref DogsImageBucket
       Events:
         GetUserDogs:
           Type: Api
@@ -72,6 +74,11 @@ Resources:
           Type: Api
           Properties:
             Path: /users/{user_id}/dogs
+            Method: POST
+        PostDogImageUpload:
+          Type: Api
+          Properties:
+            Path: /users/{user_id}/dogs/{dog_id}/images
             Method: POST
         GetHealth:
           Type: Api

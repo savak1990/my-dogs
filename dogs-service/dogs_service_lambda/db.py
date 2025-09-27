@@ -6,7 +6,7 @@ from boto3.dynamodb.conditions import Key
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from models import DogDb, CreateDogRequestPayload
+from models import DogDb, CreateDogRequestPayload, ImageDb
 from typing import List
 
 class DynamoDBClient:
@@ -28,8 +28,7 @@ class DynamoDBClient:
         return [DogDb.model_validate(item) for item in normalized_items]
     
     def create_dog(self, user_id: str, item: CreateDogRequestPayload) -> DogDb:
-        seq = self._next_sequence_dog_id(user_id)
-        now = datetime.now(timezone.utc).isoformat()
+        seq = self._next_sequence_id(user_id, "dog_counter")
         pk = f"USER#{user_id}"
         sk = f"DOG#{seq}"
         
@@ -37,39 +36,43 @@ class DynamoDBClient:
             PK=pk,
             SK=sk,
             name=item.name,
-            age=item.age,
-            created_at=now,
-            updated_at=now
+            age=item.age
         )
 
-        self._table.put_item(Item=item.model_dump())
+        self._table.put_item(Item=item.model_dump(exclude_none=True))
         return item
+    
+    def create_image_id(self, user_id) -> int:
+        return self._next_sequence_id(user_id, "image_counter")
+
+    def create_image(self, user_id: str, dog_id: int, image_id: int, s3_key: str) -> ImageDb:
+        pk = f"USER#{user_id}"
+        sk = f"IMAGE#{dog_id}#{image_id}"
         
+        item = ImageDb(
+            PK=pk,
+            SK=sk,
+            s3_key=s3_key,
+            status="pending"
+        )
+        
+        self._table.put_item(Item=item.model_dump(exclude_none=True))
+        return item
+
     def health_check(self):
         self._table.meta.client.describe_table(TableName=self.table_name)
     
-    def create_upload_id(self) -> int:
-        resp = self._table.update_item(
-            Key={"PK": "GLOBAL#META", "SK": "META#SEQUENCE"},
-            UpdateExpression="ADD #c :inc",
-            ExpressionAttributeNames={"#c": "upload_counter"},
-            ExpressionAttributeValues={":inc": Decimal(1)},
-            ReturnValues="UPDATED_NEW")
-
-        new_val = resp.get("Attributes", {}).get("upload_counter", 0)
-        return int(new_val)
-    
-    def _next_sequence_dog_id(self, user_id: str) -> int:
+    def _next_sequence_id(self, user_id: str, counter_name) -> int:
         pk = f"USER#{user_id}"
         
         resp = self._table.update_item(
             Key={"PK": pk, "SK": "META#SEQUENCE"},
             UpdateExpression="ADD #c :inc",
-            ExpressionAttributeNames={"#c": "dog_counter"},
+            ExpressionAttributeNames={"#c": counter_name},
             ExpressionAttributeValues={":inc": Decimal(1)},
             ReturnValues="UPDATED_NEW")
 
-        new_val = resp.get("Attributes", {}).get("dog_counter", 0)
+        new_val = resp.get("Attributes", {}).get(counter_name, 0)
         return int(new_val)
     
     def _normalize_item(self, item: dict) -> dict:

@@ -11,21 +11,21 @@ from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_xray_sdk.core import patch_all
 
-from datetime import datetime, timezone
 from botocore.exceptions import ClientError, BotoCoreError
 from db import DynamoDBClient
 from handlers import DogsService, HealthService
-from models import CreateDogResponsePayload, CreateDogRequestPayload, DogInfo
+from models import CreateDogResponsePayload, CreateDogRequestPayload, DogInfo, CreateImageRequestPayload, ImageUploadInstructions
 from typing import List
 from typing_extensions import Annotated
+from s3 import S3Client
 from uuid import UUID
 
-DATETIME_NOW_UTC_FN = lambda: datetime.now(timezone.utc)
-
+POWERTOOLS_SERVICE_NAME = os.environ.get("POWERTOOLS_SERVICE_NAME", "dogs_service")
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 DOGS_TABLE_NAME = os.environ.get("DOGS_TABLE_NAME")
 DYNAMODB_ENDPOINT = os.environ.get("DYNAMODB_ENDPOINT") or None
-POWERTOOLS_SERVICE_NAME = os.environ.get("POWERTOOLS_SERVICE_NAME", "dogs_service")
+DOGS_IMAGES_BUCKET = os.environ.get("DOGS_IMAGES_BUCKET")
+S3_ENDPOINT = os.environ.get("S3_ENDPOINT") or None
 
 patch_all()
 tracer = Tracer()
@@ -35,7 +35,10 @@ app = APIGatewayRestResolver(enable_validation=True, debug=True)
 if not DOGS_TABLE_NAME:
     raise ValueError("DOGS_TABLE_NAME environment variable is not set")
 
-logger.debug("All environment variables: %s", json.dumps(dict(os.environ)))
+if not DOGS_IMAGES_BUCKET:
+    raise ValueError("DOGS_IMAGES_BUCKET environment variable is not set")
+
+logger.info("All environment variables: %s", json.dumps(dict(os.environ)))
 
 dogs_service = None
 health_service = None
@@ -46,7 +49,10 @@ def get_dogs_service() -> DogsService:
         dogs_db = DynamoDBClient(
             table_name=DOGS_TABLE_NAME,
             endpoint_url=DYNAMODB_ENDPOINT)
-        dogs_service = DogsService(db=dogs_db)
+        dogs_s3 = S3Client(
+            bucket_name=DOGS_IMAGES_BUCKET,
+            endpoint_url=S3_ENDPOINT)
+        dogs_service = DogsService(db=dogs_db, s3=dogs_s3)
     return dogs_service
 
 def get_health_service() -> HealthService:
@@ -68,6 +74,17 @@ def create_user_dog(user_id: Annotated[UUID, Path(description="user id as UUID")
     serv = get_dogs_service()
     created_dog = serv.handle_user_dogs_post(str(user_id), body)
     return created_dog
+
+@app.post("/users/<user_id>/dogs/<dog_id>/images", responses={201: {"model": ImageUploadInstructions}})
+@tracer.capture_method
+def create_dog_image_placeholder(
+    user_id: Annotated[UUID, Path(description="user id as UUID")],
+    dog_id: Annotated[int, Path(description="dog id as integer")],
+    body: CreateImageRequestPayload
+) -> ImageUploadInstructions:
+    serv = get_dogs_service()
+    image_upload_instructions = serv.handle_create_dog_image_upload(str(user_id), dog_id, body)
+    return image_upload_instructions
 
 @app.get("/health")
 @tracer.capture_method
