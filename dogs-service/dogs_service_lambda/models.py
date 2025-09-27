@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 from typing import List, Optional
 from enum import Enum
@@ -34,17 +34,30 @@ class ImageUploadInstructions(BaseModel):
     headers: dict|None = None
     max_size: int|None = None
 
-class ImageInfo(BaseModel):
+class ImageInfo(BaseModel):    
     image_id: str
     image_url: Optional[str] = None
     status: ImageStatus
     status_reason: Optional[str] = None
+
+    @classmethod
+    def create(cls, image_db: ImageDb) -> ImageInfo:
+        parts = image_db.SK.split("#")
+        image_id = parts[2] if len(parts) > 2 else "0"
+        
+        return ImageInfo(
+            image_id=image_id,
+            image_url=None,  # Will be set by service layer after image is uploaded
+            status=image_db.status,
+            status_reason=image_db.status_reason
+        )
 
 class DogDb(BaseModel):
     PK: str = Field(..., description="Partition Key, format: USER#<user_id>")
     SK: str = Field(..., description="Sort Key, format: DOG#<dog_id>")
     name: str
     age: int
+    images: List[ImageDb] = Field(default_factory=list)
     created_at: str = Field(default_factory=lambda: DATETIME_NOW_UTC_FN().isoformat())
     updated_at: str = created_at
 
@@ -70,7 +83,6 @@ class CreateDogResponsePayload(BaseModel):
         )
 
 class DogInfo(BaseModel):
-    user_id: UUID
     dog_id: int
     name: str
     age: int
@@ -84,5 +96,6 @@ class DogInfo(BaseModel):
             user_id=user_id,
             dog_id=dog_id,
             name=dog_db.name,
-            age=dog_db.age
+            age=dog_db.age,
+            images=[ImageInfo.create(image_db) for image_db in dog_db.images]
         )

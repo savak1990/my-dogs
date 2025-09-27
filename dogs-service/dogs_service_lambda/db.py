@@ -27,6 +27,32 @@ class DynamoDBClient:
         normalized_items = [self._normalize_item(item) for item in items]
         return [DogDb.model_validate(item) for item in normalized_items]
     
+    def query_images_by_user(self, user_id: str) -> List[ImageDb]:
+        pk = f"USER#{user_id}"
+        resp = self._table.query(
+            KeyConditionExpression=Key("PK").eq(pk) & Key("SK").begins_with("IMAGE#")
+        )
+        items = resp.get("Items", [])
+        normalized_items = [self._normalize_item(item) for item in items]
+        return [ImageDb.model_validate(item) for item in normalized_items]
+    
+    def query_images_by_dog(self, user_id: str, dog_id: int) -> List[ImageDb]:
+        pk = f"USER#{user_id}"
+        sk_prefix = f"IMAGE#{dog_id}#"
+        resp = self._table.query(
+            KeyConditionExpression=Key("PK").eq(pk) & Key("SK").begins_with(sk_prefix)
+        )
+        items = resp.get("Items", [])
+        normalized_items = [self._normalize_item(item) for item in items]
+        return [ImageDb.model_validate(item) for item in normalized_items]
+    
+    def batch_query_dogs_with_images(self, user_id: str) -> List[DogDb]:
+        # TODO: Implement batch query to fetch dogs with their images in a single request
+        dogs: List[DogDb] = self.query_dogs_by_user_id(user_id)
+        images: List[ImageDb] = self.query_images_by_user(user_id)
+        result_dogs: List[DogDb] = self._merge_dogs_with_images(dogs, images)
+        return result_dogs
+
     def create_dog(self, user_id: str, item: CreateDogRequestPayload) -> DogDb:
         seq = self._next_sequence_id(user_id, "dog_counter")
         pk = f"USER#{user_id}"
@@ -84,3 +110,14 @@ class DynamoDBClient:
                 return int(obj)
             return float(obj)
         raise TypeError
+    
+    def _merge_dogs_with_images(self, dogs: List[DogDb], images: List[ImageDb]) -> List[DogDb]:
+        dog_map = {dog.SK: dog for dog in dogs}
+        for image in images:
+            parts = image.SK.split("#")
+            if len(parts) >= 3:
+                dog_id = parts[1]
+                dog_sk = f"DOG#{dog_id}"
+                if dog_sk in dog_map:
+                    dog_map[dog_sk].images.append(image)
+        return list(dog_map.values())

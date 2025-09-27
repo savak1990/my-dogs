@@ -15,7 +15,7 @@ class DogsService:
         self.s3 = s3
 
     def handle_user_dogs_get(self, user_id: str) -> List[DogInfo]:
-        dogs_db: List[DogDb] = self.db.query_dogs_by_user_id(user_id)
+        dogs_db: List[DogDb] = self.db.batch_query_dogs_with_images(user_id)
         return [DogInfo.create(dog_db) for dog_db in dogs_db]
 
     def handle_user_dogs_post(self, user_id: str, dog: CreateDogRequestPayload) -> CreateDogResponsePayload:
@@ -29,7 +29,7 @@ class DogsService:
             raise ValueError("Unsupported image extension")
         s3_key = f"users/{user_id}/dogs/{dog_id}/images/{image_id}.{extension}"
         
-        image_db = self.db.create_image(user_id, dog_id, image_id, s3_key)
+        self.db.create_image(user_id, dog_id, image_id, s3_key)
         
         expires_in = 3600 # Potentially configured with SSM Parameter Store
         content_type = get_content_type_from_extension(extension)
@@ -38,7 +38,6 @@ class DogsService:
         
         return ImageUploadInstructions(
             image_id=image_id,
-            s3_key=s3_key,
             method="PUT",
             presigned_url=presigned_url,
             expires_in=expires_in,

@@ -66,9 +66,10 @@ def get_health_service() -> HealthService:
 
 @app.get("/users/<user_id>/dogs")
 @tracer.capture_method
-def get_user_dogs(user_id: Annotated[UUID, Path(description="user id as UUID")]) -> List[DogInfo]:
+def get_user_dogs(user_id: Annotated[UUID, Path(description="user id as UUID")]) -> list:
     serv = get_dogs_service()
-    return serv.handle_user_dogs_get(str(user_id))
+    dogs = serv.handle_user_dogs_get(str(user_id))
+    return [dog.model_dump(exclude_none=True) for dog in dogs]
 
 @app.post("/users/<user_id>/dogs", responses={201: {"model": CreateDogResponsePayload}})
 @tracer.capture_method
