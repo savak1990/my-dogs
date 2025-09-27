@@ -63,6 +63,7 @@ Resources:
           DYNAMODB_ENDPOINT: ""
           DOGS_TABLE_NAME: !Ref DogsTable
           S3_ENDPOINT: ""
+          S3_PRESIGN_ENDPOINT: ""
           DOGS_IMAGES_BUCKET: !Ref DogsImageBucket
       Events:
         GetUserDogs:

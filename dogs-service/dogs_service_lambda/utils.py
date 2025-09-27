@@ -1,3 +1,5 @@
+import os
+
 from datetime import datetime, timezone
 
 DATETIME_NOW_UTC_FN = lambda: datetime.now(timezone.utc)
@@ -16,3 +18,6 @@ def get_content_type_from_extension(extension: str) -> str:
         'webp': 'image/webp'
     }
     return content_types.get(extension.lower(), 'application/octet-stream')
+
+def is_running_local() -> bool:
+    return os.getenv("AWS_SAM_LOCAL") == "true" or os.getenv("LOCALSTACK_HOSTNAME") is not None

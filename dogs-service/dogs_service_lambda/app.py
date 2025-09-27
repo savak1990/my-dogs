@@ -26,6 +26,7 @@ DOGS_TABLE_NAME = os.environ.get("DOGS_TABLE_NAME")
 DYNAMODB_ENDPOINT = os.environ.get("DYNAMODB_ENDPOINT") or None
 DOGS_IMAGES_BUCKET = os.environ.get("DOGS_IMAGES_BUCKET")
 S3_ENDPOINT = os.environ.get("S3_ENDPOINT") or None
+S3_PRESIGN_ENDPOINT = os.environ.get("S3_PRESIGN_ENDPOINT") or S3_ENDPOINT
 
 patch_all()
 tracer = Tracer()
@@ -51,7 +52,8 @@ def get_dogs_service() -> DogsService:
             endpoint_url=DYNAMODB_ENDPOINT)
         dogs_s3 = S3Client(
             bucket_name=DOGS_IMAGES_BUCKET,
-            endpoint_url=S3_ENDPOINT)
+            endpoint_url=S3_ENDPOINT,
+            presign_endpoint=S3_PRESIGN_ENDPOINT)
         dogs_service = DogsService(db=dogs_db, s3=dogs_s3)
     return dogs_service
 
