@@ -22,6 +22,7 @@ class ImageDb(BaseModel):
     status_reason: Optional[str] = None
     created_at: str = Field(default_factory=lambda: DATETIME_NOW_UTC_FN().isoformat())
     updated_at: str = created_at
+    expires_at: Optional[int] = None  # Unix epoch time for TTL
 
 class CreateImageRequestPayload(BaseModel):
     image_extension: str = Field(..., description="File extension of the image, e.g., jpg, png")

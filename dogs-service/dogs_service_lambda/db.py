@@ -3,17 +3,20 @@ import json
 
 from botocore.config import Config
 from boto3.dynamodb.conditions import Key
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
+from config import AppConfig
+from utils import DATETIME_NOW_UTC_FN
 from models import DogDb, CreateDogRequestPayload, ImageDb
 from typing import List
 
 class DynamoDBClient:
     
-    def __init__(self, table_name: str, endpoint_url: str = None):
-        self.table_name = table_name
-        self.endpoint_url = endpoint_url
+    def __init__(self, app_config: AppConfig):
+        self.image_upload_expiration_secs = app_config.image_upload_expiration_secs
+        self.table_name = app_config.dogs_table_name
+        self.endpoint_url = app_config.dynamodb_endpoint
         config = Config(connect_timeout=2, read_timeout=5, retries={"max_attempts": 2})
         self._ddb = boto3.resource("dynamodb", config=config, endpoint_url=self.endpoint_url)
         self._table = self._ddb.Table(self.table_name)
@@ -74,12 +77,13 @@ class DynamoDBClient:
     def create_image(self, user_id: str, dog_id: int, image_id: int, s3_key: str) -> ImageDb:
         pk = f"USER#{user_id}"
         sk = f"IMAGE#{dog_id}#{image_id}"
-        
+        expires_at: datetime = DATETIME_NOW_UTC_FN() + timedelta(hours=self.image_upload_expiration_secs)
         item = ImageDb(
             PK=pk,
             SK=sk,
             s3_key=s3_key,
-            status="pending"
+            status="pending",
+            expires_at=int(expires_at.timestamp())
         )
         
         self._table.put_item(Item=item.model_dump(exclude_none=True))

@@ -6,6 +6,15 @@ Parameters:
   Stage:
     Type: String
     Default: "prod"
+  DogsServiceImageExpirationSecParam:
+    Type: String
+    Default: "3600"
+  DogsServiceImageMaxSizeParam:
+    Type: String
+    Default: "5242880"  # 5MB
+  DogsServiceSupportedImageExtensionsParam:
+    Type: String
+    Default: '["jpg", "jpeg", "png", "webp"]'
 
 Globals:
   Api:
@@ -32,23 +41,6 @@ Globals:
         POWERTOOLS_LOGGER_LOG_EVENT: true
 
 Resources:
-  DogsImageBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub "${AWS::StackName}-${Stage}-images"
-      CorsConfiguration:
-        CorsRules:
-          - AllowedHeaders:
-              - "*"
-            AllowedMethods:
-              - GET
-              - PUT
-              - POST
-              - HEAD
-            AllowedOrigins:
-              - "*"
-            MaxAge: 3000
-
   DogsServiceFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -78,6 +70,9 @@ Resources:
           S3_ENDPOINT: ""
           S3_PRESIGN_ENDPOINT: ""
           DOGS_IMAGES_BUCKET: !Ref DogsImageBucket
+          IMAGE_UPLOAD_EXPIRATION_SECS: !Ref DogsServiceImageExpirationSecParam
+          IMAGE_UPLOAD_MAX_SIZE: !Ref DogsServiceImageMaxSizeParam
+          SUPPORTED_IMAGE_EXTENSIONS: !Ref DogsServiceSupportedImageExtensionsParam
       Events:
         GetUserDogs:
           Type: Api
@@ -100,6 +95,23 @@ Resources:
             Path: /health
             Method: GET
   
+  DogsImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-${Stage}-images"
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - HEAD
+            AllowedOrigins:
+              - "*"
+            MaxAge: 3000
+  
   DogsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -115,6 +127,9 @@ Resources:
         - AttributeName: SK
           KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group

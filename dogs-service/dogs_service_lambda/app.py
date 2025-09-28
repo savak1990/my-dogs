@@ -1,5 +1,3 @@
-import os
-import json
 import exception_handlers as eh
 
 from aws_lambda_powertools import Logger, Tracer
@@ -12,34 +10,21 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_xray_sdk.core import patch_all
 
 from botocore.exceptions import ClientError, BotoCoreError
-from db import DynamoDBClient
+from config import AppConfig
 from handlers import DogsService, HealthService
 from models import CreateDogResponsePayload, CreateDogRequestPayload, DogInfo, CreateImageRequestPayload, ImageUploadInstructions
 from typing import List
 from typing_extensions import Annotated
-from s3 import S3Client
 from uuid import UUID
 
-POWERTOOLS_SERVICE_NAME = os.environ.get("POWERTOOLS_SERVICE_NAME", "dogs_service")
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
-DOGS_TABLE_NAME = os.environ.get("DOGS_TABLE_NAME")
-DYNAMODB_ENDPOINT = os.environ.get("DYNAMODB_ENDPOINT") or None
-DOGS_IMAGES_BUCKET = os.environ.get("DOGS_IMAGES_BUCKET")
-S3_ENDPOINT = os.environ.get("S3_ENDPOINT") or None
-S3_PRESIGN_ENDPOINT = os.environ.get("S3_PRESIGN_ENDPOINT") or S3_ENDPOINT
-
 patch_all()
+
+app_config = AppConfig()
+app_config.maybe_print()
+
 tracer = Tracer()
-logger = Logger(level=LOG_LEVEL)
-app = APIGatewayRestResolver(enable_validation=True, debug=True)
-
-if not DOGS_TABLE_NAME:
-    raise ValueError("DOGS_TABLE_NAME environment variable is not set")
-
-if not DOGS_IMAGES_BUCKET:
-    raise ValueError("DOGS_IMAGES_BUCKET environment variable is not set")
-
-logger.info("All environment variables: %s", json.dumps(dict(os.environ)))
+logger = Logger(level=app_config.log_level)
+app = APIGatewayRestResolver(enable_validation=True)
 
 dogs_service = None
 health_service = None
@@ -47,21 +32,16 @@ health_service = None
 def get_dogs_service() -> DogsService:
     global dogs_service
     if dogs_service is None:
-        dogs_db = DynamoDBClient(
-            table_name=DOGS_TABLE_NAME,
-            endpoint_url=DYNAMODB_ENDPOINT)
-        dogs_s3 = S3Client(
-            bucket_name=DOGS_IMAGES_BUCKET,
-            endpoint_url=S3_ENDPOINT,
-            presign_endpoint=S3_PRESIGN_ENDPOINT)
-        dogs_service = DogsService(db=dogs_db, s3=dogs_s3)
+        dogs_service = DogsService(app_config=app_config)
     return dogs_service
 
 def get_health_service() -> HealthService:
     global health_service
     if health_service is None:
         dogs_service = get_dogs_service()
-        health_service = HealthService(dogs_service=dogs_service, service_name=POWERTOOLS_SERVICE_NAME)
+        health_service = HealthService(
+            dogs_service=dogs_service, 
+            app_config=app_config)
     return health_service
 
 @app.get("/users/<user_id>/dogs")
