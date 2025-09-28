@@ -29,6 +29,16 @@ class AppConfig(BaseSettings):
     @classmethod
     def validate_log_level(cls, v):
         return v.upper()
+    
+    @field_validator("dynamodb_endpoint")
+    @classmethod
+    def set_dynamodb_endpoint(cls, v, info):
+        return None if v == "" else v
+    
+    @field_validator("s3_endpoint")
+    @classmethod
+    def set_s3_endpoint(cls, v, info):
+        return None if v == "" else v
 
     @field_validator("s3_presign_endpoint")
     @classmethod
