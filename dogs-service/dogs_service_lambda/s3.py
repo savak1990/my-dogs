@@ -37,4 +37,4 @@ class S3Client:
         return presigned_url
     
     def health_check(self):
-        self.client.list_buckets()
+        self.client.list_objects_v2(Bucket=self.bucket_name, MaxKeys=1)

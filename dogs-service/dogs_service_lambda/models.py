@@ -35,6 +35,8 @@ class ImageUploadInstructions(BaseModel):
     max_size: int|None = None
 
 class ImageInfo(BaseModel):    
+    model_config = ConfigDict(exclude_none=True)
+    
     image_id: str
     image_url: Optional[str] = None
     status: ImageStatus
@@ -83,6 +85,8 @@ class CreateDogResponsePayload(BaseModel):
         )
 
 class DogInfo(BaseModel):
+    model_config = ConfigDict(exclude_none=True)
+    
     dog_id: int
     name: str
     age: int
@@ -93,7 +97,6 @@ class DogInfo(BaseModel):
         user_id = UUID(dog_db.PK.split("#")[1])
         dog_id = int(dog_db.SK.split("#")[1])
         return DogInfo(
-            user_id=user_id,
             dog_id=dog_id,
             name=dog_db.name,
             age=dog_db.age,

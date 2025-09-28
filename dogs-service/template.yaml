@@ -22,6 +22,7 @@ Globals:
     Tracing: Active
     Architectures:
       - x86_64
+    ReservedConcurrentExecutions: 1
     LoggingConfig:
       LogFormat: JSON
     Environment:
@@ -40,6 +41,7 @@ Resources:
           - AllowedHeaders:
               - "*"
             AllowedMethods:
+              - GET
               - PUT
               - POST
               - HEAD
@@ -57,6 +59,17 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref DogsTable
         - AWSXRayDaemonWriteAccess
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: !Sub "arn:aws:s3:::${DogsImageBucket}/*"
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !Sub "arn:aws:s3:::${DogsImageBucket}"
+
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: dogs-service
