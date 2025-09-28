@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_serializer
 from uuid import UUID
 from typing import List, Optional
 from enum import Enum
@@ -35,12 +35,25 @@ class ImageUploadInstructions(BaseModel):
     max_size: int|None = None
 
 class ImageInfo(BaseModel):    
-    model_config = ConfigDict(exclude_none=True)
-    
     image_id: str
     image_url: Optional[str] = None
     status: ImageStatus
     status_reason: Optional[str] = None
+
+    @model_serializer
+    def serialize_model(self):
+        data = {
+            'image_id': self.image_id,
+            'status': self.status.value
+        }
+        
+        # Only include non-None values
+        if self.image_url is not None:
+            data['image_url'] = self.image_url
+        if self.status_reason is not None:
+            data['status_reason'] = self.status_reason
+            
+        return data
 
     @classmethod
     def create(cls, image_db: ImageDb) -> ImageInfo:
@@ -85,12 +98,19 @@ class CreateDogResponsePayload(BaseModel):
         )
 
 class DogInfo(BaseModel):
-    model_config = ConfigDict(exclude_none=True)
-    
     dog_id: int
     name: str
     age: int
     images: List[ImageInfo] = Field(default_factory=list)
+
+    @model_serializer
+    def serialize_model(self):
+        return {
+            'dog_id': self.dog_id,
+            'name': self.name,
+            'age': self.age,
+            'images': [image.serialize_model() for image in self.images]
+        }
     
     @classmethod
     def create(cls, dog_db: DogDb) -> DogInfo:
