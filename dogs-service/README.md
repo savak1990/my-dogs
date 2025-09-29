@@ -6,33 +6,7 @@ A serverless backend service for managing user dog profiles and image uploads wi
 
 This service is built using AWS serverless architecture with the following components:
 
-```
-┌─────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Client    │────│  API Gateway    │────│  Dogs Service   │
-│             │    │                 │    │  Lambda         │
-└─────────────┘    └─────────────────┘    │  (Python 3.13) │
-                                           └─────────┬───────┘
-                                                     │
-                   ┌─────────────────────────────────┼─────────────────┐
-                   │          Common Layer           │                 │
-                   │  (AWS Powertools, Pydantic,     │                 │
-                   │   Config, Logger, Tracer)       │                 │
-                   └─────────────────────────────────┼─────────────────┘
-                                                     │                 │
-                   ┌─────────────────┐              │                 │
-                   │    DynamoDB     │◄─────────────┤                 │
-                   │   Dogs Table    │              │                 │
-                   └─────────────────┘              │                 │
-                                                     │                 │
-                   ┌─────────────────┐              │    ┌────────────▼──────────┐
-                   │       S3        │◄─────────────┘    │  Dogs Image Processor │
-                   │ Images Bucket   │                   │  Lambda (Python 3.13) │
-                   └─────────┬───────┘                   └───────────────────────┘
-                             │                                       ▲
-                             │ S3 Events                             │
-                             │ (PUT/DELETE)                          │
-                             └───────────────────────────────────────┘
-```
+![High Level Diagram](docs/image.png)
 
 ### Component Details
 
