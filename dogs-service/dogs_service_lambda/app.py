@@ -1,29 +1,22 @@
 import exception_handlers as eh
 
-from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.event_handler import APIGatewayRestResolver, Response
 from aws_lambda_powertools.event_handler.openapi.exceptions import RequestValidationError
 from aws_lambda_powertools.event_handler.openapi.params import Path
 from aws_lambda_powertools.event_handler.exceptions import ServiceError
 from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
-from aws_xray_sdk.core import patch_all
 
 from botocore.exceptions import ClientError, BotoCoreError
-from config import AppConfig
+from dogs_common import get_config, logger, tracer
 from handlers import DogsService, HealthService
 from models import CreateDogResponsePayload, CreateDogRequestPayload, DogInfo, CreateImageRequestPayload, ImageUploadInstructions
 from typing import List
 from typing_extensions import Annotated
 from uuid import UUID
 
-patch_all()
+app_config = get_config()
 
-app_config = AppConfig()
-app_config.maybe_print()
-
-tracer = Tracer()
-logger = Logger(level=app_config.log_level)
 app = APIGatewayRestResolver(enable_validation=True)
 
 dogs_service = None

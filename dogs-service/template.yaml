@@ -25,7 +25,6 @@ Globals:
       AllowOrigin: "'*'"
 
   Function:
-    Handler: app.lambda_handler
     Runtime: python3.13
     Timeout: 30
     Tracing: Active
@@ -39,14 +38,40 @@ Globals:
         LOG_LEVEL: INFO
         POWERTOOLS_LOGGER_SAMPLE_RATE: "0.1"
         POWERTOOLS_LOGGER_LOG_EVENT: true
+        DYNAMODB_ENDPOINT: ""
+        DOGS_TABLE_NAME: !Ref DogsTable
+        S3_ENDPOINT: ""
+        S3_PRESIGN_ENDPOINT: ""
+        DOGS_IMAGES_BUCKET: !Sub "${AWS::StackName}-${Stage}-images"
+        IMAGE_UPLOAD_EXPIRATION_SECS: !Ref DogsServiceImageExpirationSecParam
+        IMAGE_UPLOAD_MAX_SIZE: !Ref DogsServiceImageMaxSizeParam
+        SUPPORTED_IMAGE_EXTENSIONS: !Ref DogsServiceSupportedImageExtensionsParam
 
 Resources:
+  CommonLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: python3.13
+      BuildArchitecture: x86_64
+    Properties:
+      LayerName: !Sub "${AWS::StackName}-${Stage}-common-layer"
+      Description: Common utilities layer for Dogs Service and Image processing Lambdas
+      ContentUri: layers/common/
+      CompatibleRuntimes:
+        - python3.13
+
   DogsServiceFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub "${AWS::StackName}-${Stage}-lambda"
       CodeUri: dogs_service_lambda/
+      Handler: app.lambda_handler
       Description: Lambda function for Dogs Service
+      Layers:
+        - !Ref CommonLambdaLayer
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: dogs-service
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref DogsTable
@@ -56,23 +81,11 @@ Resources:
             - Effect: Allow
               Action:
                 - s3:PutObject
-              Resource: !Sub "arn:aws:s3:::${DogsImageBucket}/*"
+              Resource: !Sub "arn:aws:s3:::${AWS::StackName}-${Stage}-images/*"
             - Effect: Allow
               Action:
                 - s3:ListBucket
-              Resource: !Sub "arn:aws:s3:::${DogsImageBucket}"
-
-      Environment:
-        Variables:
-          POWERTOOLS_SERVICE_NAME: dogs-service
-          DYNAMODB_ENDPOINT: ""
-          DOGS_TABLE_NAME: !Ref DogsTable
-          S3_ENDPOINT: ""
-          S3_PRESIGN_ENDPOINT: ""
-          DOGS_IMAGES_BUCKET: !Ref DogsImageBucket
-          IMAGE_UPLOAD_EXPIRATION_SECS: !Ref DogsServiceImageExpirationSecParam
-          IMAGE_UPLOAD_MAX_SIZE: !Ref DogsServiceImageMaxSizeParam
-          SUPPORTED_IMAGE_EXTENSIONS: !Ref DogsServiceSupportedImageExtensionsParam
+              Resource: !Sub "arn:aws:s3:::${AWS::StackName}-${Stage}-images"
       Events:
         GetUserDogs:
           Type: Api
@@ -130,7 +143,73 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: expires_at
         Enabled: true
+  
+  DogsImageProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-${Stage}-image-processor-lambda"
+      CodeUri: dogs_image_processor_lambda/
+      Handler: processor.lambda_handler
+      Description: Lambda function for processing dog images uploaded to S3
+      Layers:
+        - !Ref CommonLambdaLayer
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: dogs-image-processor
+      Policies:
+        - AWSXRayDaemonWriteAccess
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DogsTable
+        - Version: "2012-10-17"
+          Statement: 
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-${Stage}-image-processor-dlq"
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${AWS::StackName}-${Stage}-images/*"
+      Events:
+        OnObjectCreated:
+          Type: S3
+          Properties:
+            Bucket: !Ref DogsImageBucket
+            Events: 
+              - s3:ObjectCreated:*
+              - s3:ObjectRemoved:*
+  
+  DogsImageProcessorDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-${Stage}-image-processor-dlq"
+      MessageRetentionPeriod: 1209600
 
+  DogsImageProcessorEventInvokeConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref DogsImageProcessorFunction
+      Qualifier: "$LATEST"
+      MaximumRetryAttempts: 2
+      MaximumEventAgeInSeconds: 60
+      DestinationConfig:
+        OnFailure:
+          Destination: !GetAtt DogsImageProcessorDLQ.Arn
+  
+  DogsServiceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${Stage}-lambda"
+      RetentionInDays: 14
+  
+  DogsImageProcessorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-${Stage}-image-processor-lambda"
+      RetentionInDays: 14
+  
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:

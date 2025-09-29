@@ -70,3 +70,9 @@ class AppConfig(BaseSettings):
     def maybe_print(self):
         if self.log_level.upper() in ["DEBUG", "INFO"]:
             print(self)
+
+@lru_cache(maxsize=1)
+def get_config() -> AppConfig:
+    config = AppConfig()
+    config.maybe_print()
+    return config

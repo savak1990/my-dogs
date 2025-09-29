@@ -6,7 +6,7 @@ from boto3.dynamodb.conditions import Key
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from config import AppConfig
+from dogs_common.config import AppConfig
 from utils import DATETIME_NOW_UTC_FN
 from models import DogDb, CreateDogRequestPayload, ImageDb
 from typing import List
