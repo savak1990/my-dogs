@@ -1,0 +1,9 @@
+{
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/layers/common"
+    ],
+    // keep for older VS Code Python extension compatibility
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}/layers/common"
+    ]
+}

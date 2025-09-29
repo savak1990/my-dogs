@@ -2,7 +2,7 @@ import boto3
 
 from aws_lambda_powertools import Logger
 from typing import Optional
-from config import AppConfig
+from dogs_common.config import AppConfig
 from utils import is_running_local
 
 class S3Client:

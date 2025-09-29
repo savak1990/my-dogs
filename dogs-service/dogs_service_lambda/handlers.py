@@ -2,7 +2,7 @@ from aws_lambda_powertools.event_handler.exceptions import ServiceError
 from aws_lambda_powertools import Logger
 from datetime import datetime, timezone
 from db import DynamoDBClient
-from config import AppConfig
+from dogs_common.config import AppConfig
 from models import DogDb, CreateDogRequestPayload, CreateDogResponsePayload
 from models import DogInfo, ImageUploadInstructions, CreateImageRequestPayload
 from typing import List, Dict, Any

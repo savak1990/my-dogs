@@ -82,7 +82,6 @@ class CreateDogRequestPayload(BaseModel):
     age: int
 
 class CreateDogResponsePayload(BaseModel):
-    user_id: UUID
     dog_id: int
     name: str
     age: int
