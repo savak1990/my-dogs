@@ -1,0 +1,41 @@
+{
+  "Records": [
+    {
+      "eventVersion": "2.0",
+      "eventSource": "aws:s3",
+      "awsRegion": "eu-west-1",
+      "eventTime": "2025-09-29T14:35:00.000Z",
+      "eventName": "ObjectRemoved:Delete",
+      "userIdentity": {
+        "principalId": "AIDACKCEVSQ6C2EXAMPLE",
+        "type": "AssumedRole",
+        "arn": "arn:aws:sts::123456789012:assumed-role/dogs-service-prod-DogsServiceFunctionRole-ABCDEFGHIJ/dogs-service-prod-lambda",
+        "accountId": "123456789012"
+      },
+      "requestParameters": {
+        "sourceIPAddress": "203.0.113.42",
+        "bucketName": "dogs-service-prod-images",
+        "key": "users/53bea77a-f2bd-42a0-a445-6c7477fce1c9/dogs/1/images/1.jpg"
+      },
+      "responseElements": {
+        "x-amz-request-id": "5B72A9D7E3F1C8A4",
+        "x-amz-id-2": "ZgRISOwyjmnup8K9QkIBDBhObhkhDZe9wDEJf8gkjjjGxdGc8eQn7ZgZ9pQfQ3nrxYAI5QeY5h"
+      },
+      "s3": {
+        "s3SchemaVersion": "1.0",
+        "configurationId": "testConfigRule",
+        "bucket": {
+          "name": "dogs-service-prod-images",
+          "ownerIdentity": {
+            "principalId": "A3NL1KOZZKTv0w"
+          },
+          "arn": "arn:aws:s3:::dogs-service-prod-images"
+        },
+        "object": {
+          "key": "users/53bea77a-f2bd-42a0-a445-6c7477fce1c9/dogs/1/images/1.jpg",
+          "sequencer": "0A1B2C3D4E5F678902"
+        }
+      }
+    }
+  ]
+}

@@ -25,7 +25,6 @@ Globals:
       AllowOrigin: "'*'"
 
   Function:
-    Handler: app.lambda_handler
     Runtime: python3.13
     Timeout: 30
     Tracing: Active
@@ -46,6 +45,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${AWS::StackName}-${Stage}-lambda"
       CodeUri: dogs_service_lambda/
+      Handler: app.lambda_handler
       Description: Lambda function for Dogs Service
       Policies:
         - DynamoDBCrudPolicy:
@@ -130,6 +130,57 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: expires_at
         Enabled: true
+  
+  DogsImageProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-${Stage}-image-processor-lambda"
+      CodeUri: dogs_image_processor_lambda/
+      Handler: processor.lambda_handler
+      Description: Lambda function for processing dog images uploaded to S3
+      Policies:
+        - AWSXRayDaemonWriteAccess
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DogsTable
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${DogsImageBucket}/*"
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: dogs-image-processor
+          DYNAMODB_ENDPOINT: ""
+          DOGS_TABLE_NAME: !Ref DogsTable
+          S3_ENDPOINT: ""
+          DOGS_IMAGES_BUCKET: !Ref DogsImageBucket
+          IMAGE_UPLOAD_MAX_SIZE: !Ref DogsServiceImageMaxSizeParam
+          SUPPORTED_IMAGE_EXTENSIONS: !Ref DogsServiceSupportedImageExtensionsParam
+      Events:
+        OnObjectCreated:
+          Type: S3
+          Properties:
+            Bucket: !Ref DogsImageBucket
+            Events: 
+              - s3:ObjectCreated:*
+              - s3:ObjectRemoved:*
+  
+  DogsImageProcessorDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-${Stage}-image-processor-dlq"
+      MessageRetentionPeriod: 1209600
+
+  DogsImageProcessorEventInvokeConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref DogsImageProcessorFunction
+      MaximumRetryAttempts: 2
+      MaximumEventAgeInSeconds: 60
+      DestinationConfig:
+        OnFailure:
+          Destination: !Sub "${DogsImageProcessorDLQ.Arn}"
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group

@@ -1,0 +1,48 @@
+{
+  "Records": [
+    {
+      "eventVersion": "2.0",
+      "eventSource": "aws:s3",
+      "awsRegion": "eu-west-1",
+      "eventTime": "2025-09-29T13:21:00.000Z",
+      "eventName": "ObjectCreated:Put",
+      "userIdentity": {
+        "principalId": "AIDACKCEVSQ6C2EXAMPLE",
+        "type": "AssumedRole",
+        "arn": "arn:aws:sts::123456789012:assumed-role/dogs-service-prod-DogsServiceFunctionRole-ABCDEFGHIJ/dogs-service-prod-lambda",
+        "accountId": "123456789012"
+      },
+      "requestParameters": {
+        "sourceIPAddress": "203.0.113.42",
+        "bucketName": "dogs-service-prod-images",
+        "key": "users/53bea77a-f2bd-42a0-a445-6c7477fce1c9/dogs/1/images/1.jpg",
+        "x-amz-server-side-encryption": "AES256",
+        "x-amz-storage-class": "STANDARD",
+        "x-amz-content-sha256": "UNSIGNED-PAYLOAD"
+      },
+      "responseElements": {
+        "x-amz-request-id": "4442587FB7D0A2F9",
+        "x-amz-id-2": "MzRISOwyjmnup7K7QkIBDBhObhkhDZe8vDEJf8gkjjjGxdGc7dQn6ZgZ8pQfQ2nqyYAI4PdX4g",
+        "x-amz-server-side-encryption": "AES256",
+        "x-amz-server-side-encryption-aws-kms-key-id": "arn:aws:kms:eu-west-1:123456789012:key/12345678-1234-1234-1234-123456789012"
+      },
+      "s3": {
+        "s3SchemaVersion": "1.0",
+        "configurationId": "testConfigRule",
+        "bucket": {
+          "name": "dogs-service-prod-images",
+          "ownerIdentity": {
+            "principalId": "A3NL1KOZZKTv0w"
+          },
+          "arn": "arn:aws:s3:::dogs-service-prod-images"
+        },
+        "object": {
+          "key": "users/53bea77a-f2bd-42a0-a445-6c7477fce1c9/dogs/1/images/1.jpg",
+          "size": 5242880,
+          "eTag": "d41d8cd98f00b204e9800998ecf8427e",
+          "sequencer": "0A1B2C3D4E5F678901"
+        }
+      }
+    }
+  ]
+}
