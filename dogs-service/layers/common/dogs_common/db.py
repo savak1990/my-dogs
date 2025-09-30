@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from .config import AppConfig
 from .utils import DATETIME_NOW_UTC_FN
-from .models import DogDb, CreateDogRequestPayload, UpdateDogRequestPayload, ImageDb, UpdateImageRequestPayload
+from .models import DogDb, CreateDogRequestPayload, ImageStatus, UpdateDogRequestPayload, ImageDb, UpdateImageRequestPayload
 from typing import List
 
 class DynamoDBClient:
@@ -119,14 +119,13 @@ class DynamoDBClient:
     def create_image_id(self, user_id) -> int:
         return self._next_sequence_id(user_id, "image_counter")
 
-    def create_image(self, user_id: str, dog_id: int, image_id: int, s3_key: str) -> ImageDb:
+    def create_image(self, user_id: str, dog_id: int, image_id: int) -> ImageDb:
         pk = f"USER#{user_id}"
         sk = f"IMAGE#{dog_id}#{image_id}"
         expires_at: datetime = DATETIME_NOW_UTC_FN() + timedelta(hours=self.image_upload_expiration_secs)
         item = ImageDb(
             PK=pk,
             SK=sk,
-            s3_key=s3_key,
             status="pending",
             expires_at=int(expires_at.timestamp())
         )
@@ -147,28 +146,58 @@ class DynamoDBClient:
         return ImageDb.model_validate(normalized_item)
 
     def update_image(self, user_id: str, dog_id: int, image_id: int, 
-                     current_version: int, item: UpdateImageRequestPayload) -> ImageDb:
+                     item: UpdateImageRequestPayload) -> ImageDb:
         pk = f"USER#{user_id}"
         sk = f"IMAGE#{dog_id}#{image_id}"
         now_iso = DATETIME_NOW_UTC_FN().isoformat()
+        
+        if (item.s3_key is None or item.s3_key.strip() == "") and item.status == "uploaded":
+            item.status = ImageStatus.FAILED
+            item.status_reason = "S3 key is missing"
+            
+        current: ImageDb = self.get_image(user_id, dog_id, image_id)
+        current_version: int = current.version
+
+        set_parts = [
+            "#s = :status",
+            "#sr = :status_reason",
+            "#obj = :s3_key",
+            "#u = :updated_at"
+        ]
+        expr_attr_names = {
+            "#s": "status",
+            "#sr": "status_reason",
+            "#obj": "s3_key",
+            "#u": "updated_at",
+            "#v": "version"
+        }
+        expr_attr_values = {
+            ":status": item.status,
+            ":status_reason": item.status_reason,
+            ":updated_at": now_iso,
+            ":inc": Decimal(1),
+            ":current_version": Decimal(current_version),
+            ":s3_key": item.s3_key
+        }
+
+        remove_clause = None
+        if getattr(item, "clear_ttl", False):
+            remove_clause = "REMOVE #expires_at"
+            expr_attr_names["#expires_at"] = "expires_at"
+
+        update_expr_parts = []
+        update_expr_parts.append("SET " + ", ".join(set_parts))
+        if remove_clause:
+            update_expr_parts.append(remove_clause)
+        update_expr_parts.append("ADD #v :inc")
+        update_expr = "\n".join(update_expr_parts)
 
         resp = self._table.update_item(
             Key={"PK": pk, "SK": sk},
-            UpdateExpression="SET #s = :status, #sr = :status_reason, #u = :updated_at ADD #v :inc",
+            UpdateExpression=update_expr,
             ConditionExpression="attribute_not_exists(#v) OR #v = :current_version",
-            ExpressionAttributeNames={
-                "#s": "status",
-                "#sr": "status_reason",
-                "#u": "updated_at",
-                "#v": "version"
-            },
-            ExpressionAttributeValues={
-                ":status": item.status,
-                ":status_reason": item.status_reason,
-                ":updated_at": now_iso,
-                ":inc": Decimal(1),
-                ":current_version": Decimal(current_version)
-            },
+            ExpressionAttributeNames=expr_attr_names,
+            ExpressionAttributeValues=expr_attr_values,
             ReturnValues="ALL_NEW"
         )
         

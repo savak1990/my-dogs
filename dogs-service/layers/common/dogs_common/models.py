@@ -7,11 +7,8 @@ from .utils import DATETIME_NOW_UTC_FN
 
 class ImageStatus(str, Enum):
     PENDING = "pending"
-    UPLOADED = "uploaded"
-    READY = "ready"
-    REJECTED = "rejected"
-    FAILED = "failed"
-    DELETED = "deleted"
+    UPLOADED = "uploaded" # Uploaded to S3 successfully, link is available
+    DELETED = "deleted" # Explicit deletion, deleted from S3
 
 # Image DB Models
 class ImageDb(BaseModel):
@@ -32,8 +29,10 @@ class CreateImageRequestPayload(BaseModel):
 
 class UpdateImageRequestPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
+    s3_key: str
     status: ImageStatus
     status_reason: Optional[str] = None
+    clear_ttl: Optional[bool] = Field(default=False, description="If true, clears the expires_at field")
 
 class ImageUploadInstructions(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -80,6 +79,7 @@ class ImageInfo(BaseModel):
         data = {
             "image_id": self.image_id,
             "status": self.status.value,
+            "image_url": self.image_url,
             "version": self.version,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
@@ -96,6 +96,7 @@ class ImageInfo(BaseModel):
         image_id = parts[2] if len(parts) > 2 else "0"
         return cls(
             image_id=image_id,
+            image_url=f"s3://{image_db.s3_key}" if image_db.s3_key else None,
             status=image_db.status,
             status_reason=image_db.status_reason,
             version=image_db.version,

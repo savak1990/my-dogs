@@ -36,7 +36,7 @@ class DogsService:
         content_type = get_content_type_from_extension(extension)
         presigned_url = self.s3.generate_presigned_put_url(s3_key, expires_in, content_type)
         
-        image_db: ImageDb = self.db.create_image(user_id, dog_id, image_id, s3_key)
+        image_db: ImageDb = self.db.create_image(user_id, dog_id, image_id)
         image_info: ImageInfo = ImageInfo.create(image_db)
         
         upload_instructions = ImageUploadInstructions(

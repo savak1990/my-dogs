@@ -38,6 +38,10 @@ class S3Client:
         self.logger.info(f"Generated presigned PUT URL: {presigned_url}")
         return presigned_url
     
+    def delete_object(self, s3_key: str):
+        self.logger.info(f"Deleting S3 object: {s3_key}")
+        self.client.delete_object(Bucket=self.bucket_name, Key=s3_key)
+
     def health_check(self):
         self.client.list_objects_v2(Bucket=self.bucket_name, MaxKeys=1)
 
