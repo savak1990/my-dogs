@@ -154,12 +154,22 @@ curl -X POST "$API_BASE_URL/users/$USER_ID/dogs/1/images" \
 **Expected Response:**
 ```json
 {
-  "image_id": 1,
-  "method": "PUT",
-  "presigned_url": "https://your-bucket.s3.amazonaws.com/path/to/image?signed-params...",
-  "expires_in": 3600,
-  "headers": null,
-  "max_size": null
+  "image": {
+    "image_id": "1",
+    "status": "pending",
+    "version": 1,
+    "created_at": "2025-09-30T13:33:20.016923+00:00",
+    "updated_at": "2025-09-30T13:33:20.016937+00:00"
+  },
+  "upload_instructions": {
+    "method": "PUT",
+    "presigned_url": "https://your-bucket.s3.amazonaws.com/path/to/image?signed-params...",
+    "expires_in": 3600,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "max_size": 5242880
+  }
 }
 ```
 

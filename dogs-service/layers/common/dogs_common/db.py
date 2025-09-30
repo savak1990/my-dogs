@@ -4,12 +4,12 @@ import json
 
 from botocore.config import Config
 from boto3.dynamodb.conditions import Key
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from .config import AppConfig
 from .utils import DATETIME_NOW_UTC_FN
-from .models import DogDb, CreateDogRequestPayload, ImageDb
+from .models import DogDb, CreateDogRequestPayload, UpdateDogRequestPayload, ImageDb, UpdateImageRequestPayload
 from typing import List
 
 class DynamoDBClient:
@@ -72,6 +72,50 @@ class DynamoDBClient:
         self._table.put_item(Item=item.model_dump(exclude_none=True))
         return item
     
+    def get_dog(self, user_id: str, dog_id: int) -> DogDb:
+        pk = f"USER#{user_id}"
+        sk = f"DOG#{dog_id}"
+        
+        resp = self._table.get_item(Key={"PK": pk, "SK": sk})
+        item = resp.get("Item")
+        if not item:
+            raise ValueError(f"Dog with id {dog_id} for user {user_id} not found.")
+        
+        normalized_item = self._normalize_item(item)
+        return DogDb.model_validate(normalized_item)
+    
+    def update_dog(self, user_id: str, dog_id: int, current_version: int, item: UpdateDogRequestPayload) -> DogDb:
+        pk = f"USER#{user_id}"
+        sk = f"DOG#{dog_id}"
+        now_iso = DATETIME_NOW_UTC_FN().isoformat()
+
+        resp = self._table.update_item(
+            Key={"PK": pk, "SK": sk},
+            UpdateExpression="SET #n = :name, #a = :age, #u = :updated_at ADD #v :inc",
+            ConditionExpression="attribute_not_exists(#v) OR #v = :current_version",
+            ExpressionAttributeNames={
+                "#n": "name",
+                "#a": "age",
+                "#u": "updated_at",
+                "#v": "version"
+            },
+            ExpressionAttributeValues={
+                ":name": item.name,
+                ":age": item.age,
+                ":updated_at": now_iso,
+                ":inc": Decimal(1),
+                ":current_version": Decimal(current_version)
+            },
+            ReturnValues="ALL_NEW"
+        )
+        
+        updated_item = resp.get("Attributes")
+        if not updated_item:
+            raise ValueError(f"Dog with id {dog_id} for user {user_id} not found.")
+        
+        normalized_item = self._normalize_item(updated_item)
+        return DogDb.model_validate(normalized_item)
+    
     def create_image_id(self, user_id) -> int:
         return self._next_sequence_id(user_id, "image_counter")
 
@@ -89,6 +133,51 @@ class DynamoDBClient:
         
         self._table.put_item(Item=item.model_dump(exclude_none=True))
         return item
+    
+    def get_image(self, user_id: str, dog_id: int, image_id: int) -> ImageDb:
+        pk = f"USER#{user_id}"
+        sk = f"IMAGE#{dog_id}#{image_id}"
+        
+        resp = self._table.get_item(Key={"PK": pk, "SK": sk})
+        item = resp.get("Item")
+        if not item:
+            raise ValueError(f"Image with id {image_id} for dog {dog_id} and user {user_id} not found.")
+        
+        normalized_item = self._normalize_item(item)
+        return ImageDb.model_validate(normalized_item)
+
+    def update_image(self, user_id: str, dog_id: int, image_id: int, 
+                     current_version: int, item: UpdateImageRequestPayload) -> ImageDb:
+        pk = f"USER#{user_id}"
+        sk = f"IMAGE#{dog_id}#{image_id}"
+        now_iso = DATETIME_NOW_UTC_FN().isoformat()
+
+        resp = self._table.update_item(
+            Key={"PK": pk, "SK": sk},
+            UpdateExpression="SET #s = :status, #sr = :status_reason, #u = :updated_at ADD #v :inc",
+            ConditionExpression="attribute_not_exists(#v) OR #v = :current_version",
+            ExpressionAttributeNames={
+                "#s": "status",
+                "#sr": "status_reason",
+                "#u": "updated_at",
+                "#v": "version"
+            },
+            ExpressionAttributeValues={
+                ":status": item.status,
+                ":status_reason": item.status_reason,
+                ":updated_at": now_iso,
+                ":inc": Decimal(1),
+                ":current_version": Decimal(current_version)
+            },
+            ReturnValues="ALL_NEW"
+        )
+        
+        updated_item = resp.get("Attributes")
+        if not updated_item:
+            raise ValueError(f"Image with id {image_id} for dog {dog_id} and user {user_id} not found.")
+        
+        normalized_item = self._normalize_item(updated_item)
+        return ImageDb.model_validate(normalized_item)
 
     def health_check(self):
         self._table.meta.client.describe_table(TableName=self.table_name)

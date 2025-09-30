@@ -5,5 +5,20 @@
     // keep for older VS Code Python extension compatibility
     "python.autoComplete.extraPaths": [
         "${workspaceFolder}/layers/common"
-    ]
+    ],
+    "search.exclude": {
+        "**/.aws-sam": true,
+        "**/.aws-sam/**": true,
+        "**/.venv": true,
+        "**/node_modules": true,
+        "**/.cache": true
+    },
+    "files.exclude": {
+        "**/.aws-sam": true,
+        "**/.aws-sam/**": true
+    },
+    "files.watcherExclude": {
+        "**/.aws-sam/**": true
+    },
+    "search.useIgnoreFiles": true
 }

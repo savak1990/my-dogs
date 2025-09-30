@@ -9,6 +9,5 @@ class DogsImageProcessor:
         self.s3 = get_s3_client(app_config=app_config)
 
 @lru_cache(maxsize=1)
-def get_processor() -> DogsImageProcessor:
-    app_config = get_config()
+def get_processor(app_config: AppConfig) -> DogsImageProcessor:
     return DogsImageProcessor(app_config=app_config)

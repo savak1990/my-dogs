@@ -10,8 +10,8 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from botocore.exceptions import ClientError, BotoCoreError
 from dogs_common.config import get_config 
 from dogs_common.observability import logger, tracer
-from dogs_common.models import CreateDogRequestPayload, CreateDogResponsePayload, DogInfo
-from dogs_common.models import CreateImageRequestPayload, ImageUploadInstructions
+from dogs_common.models import CreateDogRequestPayload, CreateDogResponsePayload, GetDogResponsePayload
+from dogs_common.models import CreateImageRequestPayload, CreateImageResponsePayload
 from handlers import DogsService, HealthService
 from typing import List
 from typing_extensions import Annotated
@@ -41,7 +41,7 @@ def get_health_service() -> HealthService:
 
 @app.get("/users/<user_id>/dogs")
 @tracer.capture_method
-def get_user_dogs(user_id: Annotated[UUID, Path(description="user id as UUID")]) -> List[DogInfo]:
+def get_user_dogs(user_id: Annotated[UUID, Path(description="user id as UUID")]) -> List[GetDogResponsePayload]:
     serv = get_dogs_service()
     dogs = serv.handle_user_dogs_get(str(user_id))
     return dogs
@@ -53,16 +53,16 @@ def create_user_dog(user_id: Annotated[UUID, Path(description="user id as UUID")
     created_dog = serv.handle_user_dogs_post(str(user_id), body)
     return created_dog
 
-@app.post("/users/<user_id>/dogs/<dog_id>/images", responses={201: {"model": ImageUploadInstructions}})
+@app.post("/users/<user_id>/dogs/<dog_id>/images", responses={201: {"model": CreateImageResponsePayload}})
 @tracer.capture_method
 def create_dog_image_placeholder(
     user_id: Annotated[UUID, Path(description="user id as UUID")],
     dog_id: Annotated[int, Path(description="dog id as integer")],
     body: CreateImageRequestPayload
-) -> ImageUploadInstructions:
+) -> CreateImageResponsePayload:
     serv = get_dogs_service()
-    image_upload_instructions = serv.handle_create_dog_image_upload(str(user_id), dog_id, body)
-    return image_upload_instructions
+    image_response = serv.handle_create_image(str(user_id), dog_id, body)
+    return image_response
 
 @app.get("/health")
 @tracer.capture_method
