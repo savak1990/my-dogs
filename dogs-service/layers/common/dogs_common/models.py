@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, ConfigDict, model_serializer
 from uuid import UUID
 from typing import List, Optional
 from enum import Enum
-from utils import DATETIME_NOW_UTC_FN
+from .utils import DATETIME_NOW_UTC_FN
 
 class ImageStatus(str, Enum):
     PENDING = "pending"

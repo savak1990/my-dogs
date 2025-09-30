@@ -1,9 +1,10 @@
+from functools import lru_cache
 import boto3
 
 from aws_lambda_powertools import Logger
 from typing import Optional
-from dogs_common.config import AppConfig
-from utils import is_running_local
+from .config import AppConfig
+from .utils import is_running_local
 
 class S3Client:
     def __init__(self, app_config: AppConfig):
@@ -39,3 +40,7 @@ class S3Client:
     
     def health_check(self):
         self.client.list_objects_v2(Bucket=self.bucket_name, MaxKeys=1)
+
+@lru_cache(maxsize=1)
+def get_s3_client(app_config: AppConfig) -> S3Client:
+    return S3Client(app_config=app_config)

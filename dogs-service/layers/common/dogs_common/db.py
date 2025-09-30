@@ -1,3 +1,4 @@
+from functools import lru_cache
 import boto3
 import json
 
@@ -6,9 +7,9 @@ from boto3.dynamodb.conditions import Key
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from dogs_common.config import AppConfig
-from utils import DATETIME_NOW_UTC_FN
-from models import DogDb, CreateDogRequestPayload, ImageDb
+from .config import AppConfig
+from .utils import DATETIME_NOW_UTC_FN
+from .models import DogDb, CreateDogRequestPayload, ImageDb
 from typing import List
 
 class DynamoDBClient:
@@ -125,3 +126,7 @@ class DynamoDBClient:
                 if dog_sk in dog_map:
                     dog_map[dog_sk].images.append(image)
         return list(dog_map.values())
+
+@lru_cache(maxsize=1)
+def get_dogs_db_client(app_config: AppConfig) -> DynamoDBClient:
+    return DynamoDBClient(app_config=app_config)

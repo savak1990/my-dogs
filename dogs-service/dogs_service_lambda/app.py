@@ -8,9 +8,11 @@ from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from botocore.exceptions import ClientError, BotoCoreError
-from dogs_common import get_config, logger, tracer
+from dogs_common.config import get_config 
+from dogs_common.observability import logger, tracer
+from dogs_common.models import CreateDogRequestPayload, CreateDogResponsePayload, DogInfo
+from dogs_common.models import CreateImageRequestPayload, ImageUploadInstructions
 from handlers import DogsService, HealthService
-from models import CreateDogResponsePayload, CreateDogRequestPayload, DogInfo, CreateImageRequestPayload, ImageUploadInstructions
 from typing import List
 from typing_extensions import Annotated
 from uuid import UUID

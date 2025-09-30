@@ -1,20 +1,20 @@
 from aws_lambda_powertools.event_handler.exceptions import ServiceError
 from aws_lambda_powertools import Logger
 from datetime import datetime, timezone
-from db import DynamoDBClient
+from dogs_common.db import DynamoDBClient, get_dogs_db_client
 from dogs_common.config import AppConfig
-from models import DogDb, CreateDogRequestPayload, CreateDogResponsePayload
-from models import DogInfo, ImageUploadInstructions, CreateImageRequestPayload
+from dogs_common.models import DogDb, CreateDogRequestPayload, CreateDogResponsePayload
+from dogs_common.models import DogInfo, ImageUploadInstructions, CreateImageRequestPayload
 from typing import List, Dict, Any
-from s3 import S3Client
-from utils import get_content_type_from_extension
+from dogs_common.s3 import S3Client, get_s3_client
+from dogs_common.utils import get_content_type_from_extension
 
 class DogsService:
 
     def __init__(self, app_config: AppConfig):
         self.app_config = app_config
-        self.db = DynamoDBClient(app_config=app_config)
-        self.s3 = S3Client(app_config=app_config)
+        self.db: DynamoDBClient = get_dogs_db_client(app_config=app_config)
+        self.s3: S3Client = get_s3_client(app_config=app_config)
 
     def handle_user_dogs_get(self, user_id: str) -> List[DogInfo]:
         dogs_db: List[DogDb] = self.db.batch_query_dogs_with_images(user_id)

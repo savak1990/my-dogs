@@ -23,7 +23,7 @@ class AppConfig(BaseSettings):
     image_upload_max_size: int = Field(default=5 * 1024 * 1024)
     supported_image_extensions: str = Field(default=['jpg', 'jpeg', 'png', 'webp'])
 
-    model_config = {"case_sensitive": False}
+    model_config = {"case_sensitive": False, "frozen": True}
 
     @field_validator("log_level")
     @classmethod
@@ -66,6 +66,9 @@ class AppConfig(BaseSettings):
         dump['level'] = self.log_level
         dump['message'] = 'config'
         return str(dump)
+    
+    def __hash__(self):
+        return hash(tuple(sorted(self.model_dump().items())))
     
     def maybe_print(self):
         if self.log_level.upper() in ["DEBUG", "INFO"]:

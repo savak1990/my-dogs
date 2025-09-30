@@ -1,6 +1,6 @@
 from aws_lambda_powertools import Logger, Tracer
 from aws_xray_sdk.core import patch_all
-from dogs_common.config import get_config
+from .config import get_config
 
 # Apply X-Ray patching early at module import time
 patch_all()

@@ -4,8 +4,7 @@ from aws_lambda_powertools.event_handler import Response
 from aws_lambda_powertools.event_handler.openapi.exceptions import RequestValidationError
 from botocore.exceptions import ClientError, BotoCoreError
 from aws_lambda_powertools.event_handler.exceptions import ServiceError
-
-logger = logging.getLogger("dogs_service")
+from dogs_common import logger
 
 def handle_boto_client_error(e: ClientError) -> Response:
     logger.exception("ClientError: %s", e)
