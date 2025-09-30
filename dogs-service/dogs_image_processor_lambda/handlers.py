@@ -59,6 +59,7 @@ class DogsImageProcessor:
             status=ImageStatus.UPLOADED,
             clear_ttl=True)
         self.db.update_image(ids.user_id, ids.dog_id, ids.image_id, update_payload)
+        return {"bucket": bucket_name, "key": object_key, "status": ImageStatus.UPLOADED}
 
     def _parse_s3_key(self, s3_key: str) -> Ids:
         # Expected format: users/{user_id}/dogs/{dog_id}/images/{image_id}.{extension}
