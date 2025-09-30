@@ -21,6 +21,7 @@ def lambda_handler(event: S3Event, _: LambdaContext):
         except Exception as e:
             logger.exception(f"Error processing record", exception=e)
             raise e
-    
-    logger.info(f"Processed {len(event.records)} records", results=total_result)
+
+    # event.records may be a generator (no len()); use the collected results instead
+    logger.info(f"Processed {len(total_result)} records", results=total_result)
     return total_result
