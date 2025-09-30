@@ -4,7 +4,7 @@ from functools import lru_cache
 
 from pydantic import BaseModel
 from dogs_common.models import ImageStatus, UpdateImageRequestPayload
-from dogs_common.observability import logger, tracer
+from dogs_common.observability import logger
 from dogs_common.config import AppConfig
 from dogs_common.db import get_dogs_db_client
 from dogs_common.s3 import get_s3_client
@@ -22,7 +22,6 @@ class DogsImageProcessor:
         self.s3 = get_s3_client(app_config=app_config)
         self.db = get_dogs_db_client(app_config=app_config)
     
-    @tracer.capture_method
     def process_record(self, record: S3EventRecord) -> dict:
         bucket_name = record.s3.bucket.name
         object_key = record.s3.get_object.key
